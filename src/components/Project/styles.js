@@ -32,10 +32,10 @@ export const Container = styled.div`
         left: 0;
         height: calc(100% - 24px);
         background-image: url(${props => props.mainImage});
-        background-position: center center;
+		background-position: center; /* Center the image */
+  		background-repeat: no-repeat; /* Do not repeat the image */
+  		background-size: cover; 
         
-        background-repeat: no-repeat;
-        background-size: 100% 100%;
 
         transition: all 0.3s ease-in;
         :hover {
