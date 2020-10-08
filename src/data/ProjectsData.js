@@ -78,7 +78,6 @@ const Projects = [
         description: 'A frontend with basic ecommerce features and design.',
         tech: [
             'nodejs',
-            'react-native',
             'styled-components',
 			'css',
 			'reactjs'
