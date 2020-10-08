@@ -33,7 +33,7 @@ const Project = (props) => {
     </>;
     const mainImageIndex = Math.floor(Math.random() * Math.floor(props.project.images.length));
     const overlayImageIndex = (mainIndex) => {
-        if(props.project.images.length === 0) {
+        if(props.project.images.length <= 1 ) {
             return 0;
         }
         while(true) {

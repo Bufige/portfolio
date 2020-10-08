@@ -11,9 +11,7 @@ export const Container = styled.div`
         img {
             width: 100%;
             height: 100%;
-			background-position: center; /* Center the image */
-  			background-repeat: no-repeat; /* Do not repeat the image */
-  			background-size: cover; 
+			
         }
         .arrow {
             position: relative;
@@ -31,7 +29,7 @@ export const Container = styled.div`
             :hover {
                 background-color: rgba(0,0,0, 0.6);
             }
-
+			color: grey;
             cursor: pointer;
         }
     }

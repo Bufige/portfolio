@@ -72,5 +72,65 @@ const Projects = [
         demo: '',
         github: 'https://github.com/outbreakx/twitch-app',
 	}, 
+	{
+        id: 3,
+        name: 'Ecommerce frontend',
+        description: 'A frontend with basic ecommerce features and design.',
+        tech: [
+            'nodejs',
+            'react-native',
+            'styled-components',
+			'css',
+			'reactjs'
+        ],
+        skills: [
+            'front-end',
+			'responsive',
+			'mobile first'
+        ],
+        images: [
+            'https://i.ibb.co/XFK0DM7/ecommerce1.png',
+			'https://i.ibb.co/6BHcFzD/ecommerce2.png'
+        ],
+        demo: 'https://ecommerce-react-nine.vercel.app',
+        github: 'https://github.com/Bufige/ecommerce-react',
+	}, 
+	{
+        id: 4,
+        name: 'Ecommerce backend api',
+        description: 'api with basic ecommerce features',
+        tech: [
+			'nodejs',
+			'adonisjs'
+        ],
+        skills: [
+			'back-end',
+			'api'
+        ],
+        images: [
+            'https://i.ibb.co/Mks7YK0/ecommerce3.png',
+        ],
+        demo: 'https://bufige-ecommerce-api.herokuapp.com/products',
+        github: 'https://github.com/Bufige/ecommerce-api',
+	}, 
+	{
+        id: 5,
+        name: 'Webchat frontend with svelte',
+        description: 'basic webchat with svelte, learning how svelte works.',
+        tech: [
+			'nodejs',
+			'svelte'
+        ],
+        skills: [
+			'front-end',
+			'sockets'
+        ],
+        images: [
+            'https://i.ibb.co/t47gYRd/webchat1.png',
+        ],
+        demo: 'https://chat-svelte-frontend.vercel.app',
+        github: 'https://github.com/Bufige/chat-svelte-frontend',
+	}, 
+	
 ].reverse();
 export default Projects;

@@ -127,8 +127,9 @@ export const Container = styled.div`
     }
     @media(max-width: 600px) {
         .modal {
-            top: calc(2%);
-            width: 250px;
+            top: calc(6%);
+			margin-left: 50px;
+            width: 310px;
             .project-summary {
                 height: 100px;
                 font-size: 0.8rem; 
