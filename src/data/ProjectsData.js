@@ -130,6 +130,27 @@ const Projects = [
         demo: 'https://chat-svelte-frontend.vercel.app',
         github: 'https://github.com/Bufige/chat-svelte-frontend',
 	}, 
+	{
+        id: 6,
+        name: 'Nubank frontend',
+        description: 'This is my implementation of the nubank homepage',
+        tech: [
+            'nodejs',
+            'react-native',
+            'styled-components',
+            'css',
+        ],
+        skills: [
+            'front-end',
+			'responsive',
+			'mobile'
+        ],
+        images: [
+            'https://i.ibb.co/mFzVy7H/screenshot-2020-10-09-13-16-27-064.png',
+        ],
+        demo: '',
+        github: 'https://github.com/Bufige/nubank-interface.git',
+	}, 
 	
 ].reverse();
 export default Projects;
