@@ -118,11 +118,14 @@ const Projects = [
         description: 'basic webchat with svelte, learning how svelte works.',
         tech: [
 			'nodejs',
-			'svelte'
+			'svelte',
+			'monbodb',
+			'socket.io'
         ],
         skills: [
 			'front-end',
-			'sockets'
+			'sockets',
+			'mongodb',
         ],
         images: [
             'https://i.ibb.co/t47gYRd/webchat1.png',
