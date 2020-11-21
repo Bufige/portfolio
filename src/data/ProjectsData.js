@@ -47,7 +47,7 @@ const Projects = [
             "https://i.ibb.co/mzj3xTN/buvie4-2.png",
             "https://i.ibb.co/gy4vt6Q/buvie1-2.png",
         ],
-        demo: 'https://bufige.github.io/buvie/',
+        demo: 'https://buvie.vercel.app',
         github: 'https://www.github.com/bufige/buvie',
 	}, 
 	{
