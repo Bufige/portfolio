@@ -22,7 +22,7 @@ const Projects = [
             "https://i.ibb.co/CzgrH0y/port3-2.png",
             "https://i.ibb.co/gW4YTqv/port4-2.png",
         ],
-        demo: 'https://bufige.github.io/portfolio/',
+        demo: 'https://bufige-portfolio.vercel.app',
         github: 'https://www.github.com/bufige',
     },
     {
@@ -91,7 +91,7 @@ const Projects = [
             'https://i.ibb.co/XFK0DM7/ecommerce1.png',
 			'https://i.ibb.co/6BHcFzD/ecommerce2.png'
         ],
-        demo: 'https://ecommerce-react-nine.vercel.app',
+        demo: 'https://bufige-ecommerce.vercel.app',
         github: 'https://github.com/Bufige/ecommerce-react',
 	}, 
 	{
