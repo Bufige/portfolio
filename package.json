@@ -12,7 +12,8 @@
     "react-dom": "^16.13.0",
     "react-router-dom": "^5.1.2",
     "react-scripts": "^3.4.0",
-    "styled-components": "^5.0.1"
+    "styled-components": "^5.0.1",
+    "tsx": "^4.16.2"
   },
   "scripts": {
     "start": "cross-env PORT=3030 react-scripts start",
@@ -20,7 +21,8 @@
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d build"
+    "deploy": "gh-pages -d build",
+    "deploy-bucket": "aws s3 sync build/ s3://bufige.portifolio"
   },
   "eslintConfig": {
     "extends": "react-app"
