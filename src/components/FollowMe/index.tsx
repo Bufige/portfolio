@@ -22,7 +22,7 @@ const FollowMe = () => (
         </a>
       </li>
       <li className="resume">
-        <a href="https://docs.google.com/document/d/1Dxx-JWWrN5zckmVhIBPHujT2Q92u2ksw1Yi0JU5025E/edit?usp=sharing" target="_blank" rel="noopener noreferrer">
+        <a href="https://docs.google.com/document/d/1LwXp9HUGBlvqpxtWMUVjGnOcD-WI-JTvrxBrImMFynE/edit?usp=sharing" target="_blank" rel="noopener noreferrer">
           <span>Resume</span>
           <FontAwesomeIcon icon={faPortrait} className="icon resume" />
         </a>
