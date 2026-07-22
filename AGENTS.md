@@ -86,6 +86,8 @@ Array is reversed on export (newest first).
 
 - `deploy.ts` runs `npm run build` then `aws s3 sync build/ s3://bufige.portifolio --delete`
 - GitHub Pages: `npm run deploy` (via `gh-pages`)
+- CloudFront distribution: `E3UCLWQQJUTX7O` (domain: `d3ql6soerdgvpl.cloudfront.net`)
+- Skill: `.opencode/skills/deploy/` for full deploy + CF invalidation
 
 ## Nix
 
