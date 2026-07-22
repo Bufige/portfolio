@@ -42,11 +42,9 @@ src/
     Main/               # Home page: state for filters, modal, selected project
       index.tsx, styles.ts
   components/
-    Burger/             # Animated hamburger menu icon
     Dot/                # Colored circle (window bar dots + slideshow nav)
     FollowMe/           # Fixed left sidebar social links
     Footer/             # Bottom bar with copyright + contact
-    Header/             # Full-screen overlay nav (toggled by Burger)
     Modal/              # Project detail modal via createPortal
     Project/            # Project card (macOS window bar, hover overlay with tags)
     Projects/           # CSS Grid container for Project cards
