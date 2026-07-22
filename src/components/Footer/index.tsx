@@ -1,0 +1,19 @@
+import { Container } from './styles';
+
+const Footer = () => (
+  <Container>
+    <div className="copyright">
+      &copy; 2020<a href="https://github.com/bufige" target="_blank" rel="noopener noreferrer">Leonardo Igor.</a>All Rights Reserved.
+    </div>
+    <div className="contact">
+      <div>
+        Email: <a href="mailto:bufige1434@gmail.com">bufige1434@gmail.com</a>
+      </div>
+      <div>
+        Phone: <a href="tel:+55849874613984">+55 (84) 994994011</a>
+      </div>
+    </div>
+  </Container>
+);
+
+export default Footer;
