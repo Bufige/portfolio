@@ -5,7 +5,6 @@
 React SPA portfolio for Leonardo Igor ("Bufige"), a full-stack developer.  
 **NEON TERMINAL NOIR** multi-window CRT desktop: operator strip, project explorer, interactive shell, inspector, and system log.
 
-Reference prototype: `prototypes/neon-terminal/03-multi-window-hud.html`  
 Implementation plan: `docs/neon-terminal-react-plan.md`
 
 ## Tech Stack
@@ -32,7 +31,6 @@ npm run deploy-bucket  # Build + deploy to AWS S3 (s3://bufige.portifolio)
 index.html
 vite.config.ts
 docs/neon-terminal-react-plan.md
-prototypes/neon-terminal/          # HTML prototypes (03 is source of truth UX)
 
 src/
   index.tsx

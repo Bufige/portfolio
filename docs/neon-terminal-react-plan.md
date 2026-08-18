@@ -1,8 +1,7 @@
 # Plan: NEON TERMINAL NOIR — React + TypeScript
 
-Replace the current macOS-card portfolio UI with the multi-window CRT desktop validated in `prototypes/neon-terminal/03-multi-window-hud.html`.
+Replace the current macOS-card portfolio UI with the multi-window CRT desktop (NEON TERMINAL NOIR).
 
-**Reference prototype:** `prototypes/neon-terminal/03-multi-window-hud.html`  
 **Stack (unchanged):** React 19, TypeScript (strict), Styled Components v6, Vite, Vitest, HashRouter  
 **Scope:** visual + interaction redesign of the home experience; keep `ProjectData` and deploy pipeline.
 
@@ -392,4 +391,3 @@ Do **not** keep two competing home UIs long-term.
 - [x] Mobile inspector after explorer  
 - [x] Larger mobile panel heights  
 
-Prototype path: `prototypes/neon-terminal/03-multi-window-hud.html`
