@@ -1,53 +1,86 @@
-import { useState, useCallback } from 'react';
-import { Container } from './styles';
-import Modal from '@components/Modal';
-import Projects from '@components/Projects';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import CrtOverlay from '@components/neon/CrtOverlay';
+import ExplorerPanel from '@components/neon/ExplorerPanel';
+import InspectorPanel from '@components/neon/InspectorPanel';
+import OperatorPanel from '@components/neon/OperatorPanel';
+import SysLogPanel from '@components/neon/SysLogPanel';
+import TerminalPanel from '@components/neon/TerminalPanel';
+import TopBar from '@components/neon/TopBar';
 import ProjectsData from '@data/ProjectsData';
-import SearchBar from '@components/SearchBar';
-import type { ProjectData } from '@data/ProjectsData';
+import { useBootSequence } from '@hooks/useBootSequence';
+import { useSysLog } from '@hooks/useSysLog';
+import { BOOT_LINES } from '@lib/terminal/bootLines';
+import type { LogLevel } from '@lib/terminal/types';
+import { Desktop } from './styles';
 
 const Main = () => {
-  const [projects, setProjects] = useState<ProjectData[]>(ProjectsData);
-  const [selectedProject, setSelectedProject] = useState<ProjectData>(ProjectsData[0]);
-  const [showModal, setShowModal] = useState(false);
+  const startedAt = useMemo(() => Date.now(), []);
+  const projects = ProjectsData;
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const { lines: bootLines, bootDone } = useBootSequence(BOOT_LINES);
+  const { entries, push } = useSysLog(startedAt, bootDone);
 
-  const onFilter = useCallback((filtered: ProjectData[]) => {
-    setProjects(filtered);
+  useEffect(() => {
+    push('compositor boot', 'ok');
+  }, [push]);
+
+  useEffect(() => {
+    if (!bootDone) return;
+    push('nsh ready — guest session', 'ok');
+    push('operator strip mounted (primary)', 'ok');
+  }, [bootDone, push]);
+
+  const onSelect = useCallback((id: number) => {
+    setSelectedId(id);
   }, []);
 
-  const onSelectedProject = useCallback((projectIndex: number) => {
-    setSelectedProject(projects[projectIndex]);
-    setShowModal(true);
-  }, [projects]);
+  const onExplorerSelect = useCallback(
+    (id: number) => {
+      setSelectedId(id);
+      const p = projects.find((x) => x.id === id);
+      push(
+        p
+          ? `inspector focus project/${id} ${p.name}`
+          : `inspector focus project/${id}`,
+        'ok',
+      );
+    },
+    [projects, push],
+  );
 
-  const onModalClose = useCallback(() => {
-    setShowModal(false);
-  }, []);
+  const onSysLog = useCallback(
+    (message: string, level: LogLevel) => {
+      push(message, level);
+    },
+    [push],
+  );
+
+  const selected = projects.find((p) => p.id === selectedId) ?? null;
+  const connLabel = bootDone ? 'ONLINE' : 'BOOT';
 
   return (
     <>
-      <Modal
-        show={showModal}
-        project={selectedProject}
-        onClose={onModalClose}
-        interval={5000}
-      />
-      <Container>
-        <div className="wrapper">
-          <div className="info">
-            <div className="profession">
-              <h1>FullStack Developer</h1>
-            </div>
-            <div className="description">
-              Software Engineer with years of experience. Each project reflects a skill I learned at the time and used in freelance projects and through my career. You may check my resume for proper work references and what I actually do in my jobs and freelancing.
-            </div>
-          </div>
-          <SearchBar onFilter={onFilter} />
-          <div className="content">
-            <Projects projects={projects} onClick={onSelectedProject} />
-          </div>
-        </div>
-      </Container>
+      <CrtOverlay />
+      <TopBar startedAt={startedAt} />
+      <Desktop>
+        <OperatorPanel />
+        <ExplorerPanel
+          projects={projects}
+          selectedId={selectedId}
+          onSelect={onExplorerSelect}
+        />
+        <TerminalPanel
+          projects={projects}
+          selectedProjectId={selectedId}
+          bootLines={bootLines}
+          bootDone={bootDone}
+          onSelectProject={onSelect}
+          onSysLog={onSysLog}
+          connLabel={connLabel}
+        />
+        <InspectorPanel project={selected} />
+        <SysLogPanel entries={entries} />
+      </Desktop>
     </>
   );
 };

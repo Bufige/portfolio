@@ -10,6 +10,9 @@ export default defineConfig({
       '@data': path.resolve(__dirname, 'src/data'),
       '@pages': path.resolve(__dirname, 'src/pages'),
       '@styles': path.resolve(__dirname, 'src/styles'),
+      '@theme': path.resolve(__dirname, 'src/theme'),
+      '@hooks': path.resolve(__dirname, 'src/hooks'),
+      '@lib': path.resolve(__dirname, 'src/lib'),
     },
   },
   build: {
@@ -19,5 +22,6 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: './src/test-setup.ts',
+    exclude: ['**/node_modules/**', '**/dist/**', '**/build/**', '**/.direnv/**'],
   },
 })

@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NEON-7 // Classic CRT — Bufige</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+    :root {
+      --bg: #0a0a0c;
+      --cyan: #00f0ff;
+      --magenta: #ff2e88;
+      --green: #39ff14;
+      --dim: #4a5560;
+      --text: #c8e6e8;
+      --glow-c: 0 0 8px #00f0ff, 0 0 24px rgba(0, 240, 255, 0.35);
+      --glow-m: 0 0 8px #ff2e88, 0 0 20px rgba(255, 46, 136, 0.4);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'IBM Plex Mono', ui-monospace, monospace;
+      font-size: 13px;
+      overflow: hidden;
+    }
+
+    /* CRT overlays */
+    .scanlines {
+      pointer-events: none;
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background: repeating-linear-gradient(
+        0deg,
+        rgba(0, 0, 0, 0.15) 0px,
+        rgba(0, 0, 0, 0.15) 1px,
+        transparent 1px,
+        transparent 3px
+      );
+      animation: flicker 8s infinite;
+    }
+
+    .vignette {
+      pointer-events: none;
+      position: fixed;
+      inset: 0;
+      z-index: 99;
+      background: radial-gradient(ellipse at center, transparent 40%, rgba(0, 0, 0, 0.75) 100%);
+    }
+
+    @keyframes flicker {
+      0%, 94%, 100% { opacity: 1; }
+      95% { opacity: 0.85; }
+      96% { opacity: 1; }
+      97% { opacity: 0.7; }
+      98% { opacity: 1; }
+    }
+
+    /* HUD */
+    .hud {
+      position: fixed;
+      z-index: 50;
+      color: var(--cyan);
+      text-shadow: var(--glow-c);
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    .hud-tl { top: 16px; left: 20px; }
+    .hud-tr { top: 16px; right: 20px; text-align: right; color: var(--magenta); text-shadow: var(--glow-m); }
+    .hud-bl { bottom: 16px; left: 20px; color: var(--dim); text-shadow: none; }
+    .hud-br { bottom: 16px; right: 20px; color: var(--dim); text-shadow: none; }
+    .hud .label { color: var(--dim); margin-right: 6px; }
+
+    /* Layout: terminal center-left */
+    .stage {
+      height: 100%;
+      display: flex;
+      align-items: center;
+      padding: 60px 40px 50px;
+    }
+
+    .terminal {
+      width: min(720px, 92vw);
+      height: min(70vh, 560px);
+      margin-left: 4vw;
+      border: 2px solid var(--cyan);
+      box-shadow: var(--glow-c), inset 0 0 40px rgba(0, 240, 255, 0.04);
+      background: rgba(8, 10, 12, 0.92);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .terminal::before {
+      content: '';
+      position: absolute;
+      inset: -1px;
+      border: 1px solid rgba(255, 46, 136, 0.25);
+      pointer-events: none;
+    }
+
+    .titlebar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-bottom: 1px solid rgba(0, 240, 255, 0.25);
+      background: rgba(0, 240, 255, 0.04);
+      flex-shrink: 0;
+    }
+
+    .dot {
+      width: 10px; height: 10px; border-radius: 50%;
+    }
+    .dot.r { background: var(--magenta); box-shadow: 0 0 6px var(--magenta); }
+    .dot.y { background: #ffcc00; box-shadow: 0 0 6px #ffcc00; }
+    .dot.g { background: var(--green); box-shadow: 0 0 6px var(--green); }
+
+    .titlebar .name {
+      margin-left: 8px;
+      color: var(--cyan);
+      font-size: 11px;
+      letter-spacing: 0.15em;
+    }
+
+    .titlebar .status {
+      margin-left: auto;
+      color: var(--dim);
+      font-size: 10px;
+    }
+
+    .screen {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px 16px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--cyan) transparent;
+    }
+
+    .screen::-webkit-scrollbar { width: 4px; }
+    .screen::-webkit-scrollbar-thumb { background: var(--cyan); }
+
+    .line { white-space: pre-wrap; word-break: break-word; line-height: 1.55; margin: 0; }
+    .line.boot { color: var(--green); text-shadow: 0 0 4px rgba(57, 255, 20, 0.4); }
+    .line.cyan { color: var(--cyan); }
+    .line.mag { color: var(--magenta); }
+    .line.dim { color: var(--dim); }
+    .line.err {
+      color: #fff;
+      animation: rgbSplit 0.35s steps(2) 3;
+    }
+
+    @keyframes rgbSplit {
+      0% { text-shadow: 2px 0 #ff2e88, -2px 0 #00f0ff; transform: translateX(0); }
+      25% { text-shadow: -3px 0 #ff2e88, 3px 0 #00f0ff; transform: translateX(-2px); }
+      50% { text-shadow: 3px 0 #ff2e88, -3px 0 #00f0ff; transform: translateX(2px); }
+      100% { text-shadow: none; transform: translateX(0); }
+    }
+
+    .prompt-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 4px;
+      flex-shrink: 0;
+      padding: 0 16px 14px;
+    }
+
+    .prompt-label {
+      color: var(--magenta);
+      text-shadow: var(--glow-m);
+      white-space: nowrap;
+    }
+
+    .prompt-label .user { color: var(--cyan); text-shadow: var(--glow-c); }
+
+    #cmd {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text);
+      font: inherit;
+      caret-color: var(--cyan);
+    }
+
+    .cursor-blink::after {
+      content: '█';
+      color: var(--cyan);
+      animation: blink 1s step-end infinite;
+      margin-left: 2px;
+    }
+
+    @keyframes blink {
+      50% { opacity: 0; }
+    }
+
+    .hint {
+      position: fixed;
+      right: 6vw;
+      top: 50%;
+      transform: translateY(-50%);
+      max-width: 220px;
+      color: var(--dim);
+      font-size: 11px;
+      line-height: 1.7;
+      letter-spacing: 0.04em;
+    }
+    .hint strong { color: var(--cyan); display: block; margin-bottom: 8px; letter-spacing: 0.15em; }
+    .hint kbd {
+      color: var(--magenta);
+      border: 1px solid rgba(255, 46, 136, 0.4);
+      padding: 1px 6px;
+      font-size: 10px;
+    }
+
+    @media (max-width: 900px) {
+      .hint { display: none; }
+      .stage { padding: 50px 12px 40px; justify-content: center; }
+      .terminal { margin-left: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="scanlines"></div>
+  <div class="vignette"></div>
+
+  <div class="hud hud-tl"><span class="label">NODE</span>SIG / NEON-7</div>
+  <div class="hud hud-tr"><span class="label">UPTIME</span><span id="uptime">00:00:00</span></div>
+  <div class="hud hud-bl">BUFIGE // FULLSTACK</div>
+  <div class="hud hud-br">v0.1 · PROTOTYPE 01</div>
+
+  <div class="stage">
+    <div class="terminal">
+      <div class="titlebar">
+        <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+        <span class="name">neon-7 · tty0</span>
+        <span class="status" id="conn">BOOTING…</span>
+      </div>
+      <div class="screen" id="screen"></div>
+      <div class="prompt-row" id="promptRow" style="visibility:hidden">
+        <span class="prompt-label"><span class="user">guest</span>@neon-7:~$</span>
+        <input id="cmd" autocomplete="off" spellcheck="false" />
+      </div>
+    </div>
+
+    <aside class="hint">
+      <strong>// CLASSIC CRT</strong>
+      Single terminal, center-left.<br />
+      Boot log → interactive shell.<br /><br />
+      Try: <kbd>help</kbd> <kbd>files</kbd><br />
+      <kbd>open 1</kbd> <kbd>neon</kbd> <kbd>clear</kbd>
+    </aside>
+  </div>
+
+  <script>
+    const PROJECTS = [
+      { id: 0, name: 'Portfolio', desc: 'Portfolio to showcase skills and projects.', tech: ['react', 'styled-components', 'vite'], demo: 'https://bufige-portfolio.vercel.app', github: 'https://github.com/bufige' },
+      { id: 1, name: 'Buvie', desc: 'Movie search app with details.', tech: ['react', 'api', 'styled-components'], demo: 'https://buvie.vercel.app', github: 'https://github.com/bufige/buvie' },
+      { id: 2, name: 'Twitch App', desc: 'Twitch UI clone in React Native.', tech: ['react-native'], demo: '', github: 'https://github.com/outbreakx/twitch-app' },
+      { id: 3, name: 'Ecommerce FE', desc: 'Basic ecommerce frontend.', tech: ['react', 'styled-components'], demo: 'https://bufige-ecommerce.vercel.app', github: 'https://github.com/Bufige/ecommerce-react' },
+      { id: 4, name: 'Ecommerce API', desc: 'Ecommerce REST API.', tech: ['nodejs', 'adonisjs'], demo: 'https://bufige-ecommerce-api.herokuapp.com/products', github: 'https://github.com/Bufige/ecommerce-api' },
+      { id: 5, name: 'Webchat Svelte', desc: 'Realtime chat with Svelte + sockets.', tech: ['svelte', 'socket.io', 'mongodb'], demo: 'https://chat-svelte-frontend.vercel.app', github: 'https://github.com/Bufige/chat-svelte-frontend' },
+      { id: 6, name: 'Nubank UI', desc: 'Nubank homepage recreation.', tech: ['react-native'], demo: '', github: 'https://github.com/Bufige/nubank-interface.git' },
+    ];
+
+    const BOOT = [
+      { t: 'NEON-7 BIOS v3.14.159', c: 'cyan' },
+      { t: 'Copyright (c) 2026 SIG Systems', c: 'dim' },
+      { t: '', c: 'dim' },
+      { t: '[ OK ] init memory banks ........ 64TB virtual', c: 'boot' },
+      { t: '[ OK ] load neon core ........... cyan/magenta', c: 'boot' },
+      { t: '[ OK ] mount /dev/crt0 .......... phosphor ready', c: 'boot' },
+      { t: '[ OK ] scanline renderer ........ 60Hz interlaced', c: 'boot' },
+      { t: '[ OK ] vignette shader .......... radial falloff', c: 'boot' },
+      { t: '[ OK ] flicker engine ........... stochastic', c: 'boot' },
+      { t: '[ OK ] network uplink ........... encrypted', c: 'boot' },
+      { t: '[ OK ] identity module .......... BUFIGE', c: 'boot' },
+      { t: '[ OK ] role ..................... FULLSTACK_DEV', c: 'boot' },
+      { t: '[ OK ] load project index ....... 7 entries', c: 'boot' },
+      { t: '[ OK ] load skill matrix ........ front/back/mobile', c: 'boot' },
+      { t: '[ OK ] github bridge ............ linked', c: 'boot' },
+      { t: '[ OK ] demo endpoints ........... reachable', c: 'boot' },
+      { t: '[ OK ] audio bus ................ muted (visual only)', c: 'boot' },
+      { t: '[ OK ] security .................. guest sandbox', c: 'boot' },
+      { t: '[WARN] residual heat from last deploy', c: 'mag' },
+      { t: '[ OK ] calibrate phosphor glow .. done', c: 'boot' },
+      { t: '[ OK ] bind input ............... keyboard', c: 'boot' },
+      { t: '[ OK ] start shell .............. nsh 1.0', c: 'boot' },
+      { t: '', c: 'dim' },
+      { t: '─────────────────────────────────────────────', c: 'dim' },
+      { t: '  SIG / NEON-7  ·  portfolio runtime online', c: 'cyan' },
+      { t: '  type  help  for available commands', c: 'dim' },
+      { t: '─────────────────────────────────────────────', c: 'dim' },
+      { t: '', c: 'dim' },
+    ];
+
+    const screen = document.getElementById('screen');
+    const cmd = document.getElementById('cmd');
+    const promptRow = document.getElementById('promptRow');
+    const conn = document.getElementById('conn');
+    const uptimeEl = document.getElementById('uptime');
+    const t0 = Date.now();
+
+    function pad(n) { return String(n).padStart(2, '0'); }
+    setInterval(() => {
+      const s = Math.floor((Date.now() - t0) / 1000);
+      const h = Math.floor(s / 3600);
+      const m = Math.floor((s % 3600) / 60);
+      const sec = s % 60;
+      uptimeEl.textContent = `${pad(h)}:${pad(m)}:${pad(sec)}`;
+    }, 1000);
+
+    function addLine(text, cls = '') {
+      const p = document.createElement('p');
+      p.className = 'line ' + cls;
+      p.textContent = text;
+      screen.appendChild(p);
+      screen.scrollTop = screen.scrollHeight;
+      return p;
+    }
+
+    async function boot() {
+      for (const line of BOOT) {
+        addLine(line.t, line.c);
+        await new Promise(r => setTimeout(r, 45 + Math.random() * 55));
+      }
+      conn.textContent = 'ONLINE';
+      conn.style.color = 'var(--green)';
+      promptRow.style.visibility = 'visible';
+      cmd.focus();
+    }
+
+    function printHelp() {
+      addLine('available commands', 'cyan');
+      addLine('  help              show this list', 'dim');
+      addLine('  files | ls        list project files', 'dim');
+      addLine('  open <id|name>    inspect a project', 'dim');
+      addLine('  whoami            operator identity', 'dim');
+      addLine('  neon              aesthetic dump', 'dim');
+      addLine('  clear             wipe screen buffer', 'dim');
+      addLine('  contact           reach channels', 'dim');
+    }
+
+    function printFiles() {
+      addLine('drwxr-xr-x  guest  projects/', 'cyan');
+      PROJECTS.forEach(p => {
+        addLine(`-rw-r--r--  ${String(p.id).padStart(2, '0')}  ${p.name.padEnd(18)}  [${p.tech.join(', ')}]`, 'boot');
+      });
+      addLine(`${PROJECTS.length} projects · use open <id>`, 'dim');
+    }
+
+    function printOpen(arg) {
+      const q = (arg || '').toLowerCase();
+      const p = PROJECTS.find(x => String(x.id) === q || x.name.toLowerCase().includes(q));
+      if (!p) {
+        addLine(`// no match for '${arg}'`, 'err');
+        return;
+      }
+      addLine(`── PROJECT #${p.id} ──────────────────────`, 'mag');
+      addLine(`name     ${p.name}`, 'cyan');
+      addLine(`desc     ${p.desc}`, '');
+      addLine(`stack    ${p.tech.join(' · ')}`, 'boot');
+      addLine(`demo     ${p.demo || '(none)'}`, p.demo ? 'cyan' : 'dim');
+      addLine(`github   ${p.github}`, 'cyan');
+      addLine('────────────────────────────────────', 'mag');
+    }
+
+    function printNeon() {
+      addLine('╔══════════════════════════════╗', 'mag');
+      addLine('║   N E O N   T E R M I N A L  ║', 'cyan');
+      addLine('║          N O I R             ║', 'cyan');
+      addLine('╚══════════════════════════════╝', 'mag');
+      addLine('primary   #00f0ff  cyan', 'cyan');
+      addLine('accent    #ff2e88  magenta', 'mag');
+      addLine('void      #0a0a0c  black', 'dim');
+      addLine('phosphor  scanlines + vignette + flicker', 'boot');
+    }
+
+    function handle(raw) {
+      const input = raw.trim();
+      if (!input) return;
+      addLine(`guest@neon-7:~$ ${input}`, 'dim');
+      const [op, ...rest] = input.split(/\s+/);
+      const arg = rest.join(' ');
+      const c = op.toLowerCase();
+
+      if (c === 'help') printHelp();
+      else if (c === 'files' || c === 'ls') printFiles();
+      else if (c === 'open' || c === 'cat') printOpen(arg);
+      else if (c === 'neon') printNeon();
+      else if (c === 'whoami') {
+        addLine('Bufige · Leonardo Igor', 'cyan');
+        addLine('FullStack Developer', 'boot');
+        addLine('building interfaces that hum', 'dim');
+      } else if (c === 'contact') {
+        addLine('github   github.com/bufige', 'cyan');
+        addLine('web      portfolio runtime (this shell)', 'dim');
+      } else if (c === 'clear') {
+        screen.innerHTML = '';
+      } else {
+        addLine(`nsh: command not found: ${op}`, 'err');
+        addLine('// signal degraded — try help', 'dim');
+      }
+    }
+
+    cmd.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        handle(cmd.value);
+        cmd.value = '';
+      }
+    });
+
+    document.addEventListener('click', () => cmd.focus());
+    boot();
+  </script>
+</body>
+</html>

@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NEON-7 // Multi-Window HUD — Bufige</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+    :root {
+      --bg: #0a0a0c;
+      --cyan: #00f0ff;
+      --magenta: #ff2e88;
+      --green: #39ff14;
+      --dim: #8b9aa8;
+      --text: #e8f7f8;
+      --muted: #a8b8c4;
+      --panel: rgba(8, 10, 14, 0.94);
+      --glow-c: 0 0 8px #00f0ff, 0 0 28px rgba(0, 240, 255, 0.3);
+      --glow-m: 0 0 8px #ff2e88, 0 0 22px rgba(255, 46, 136, 0.35);
+
+      /* 1440p-first scale: ~16px base @ 1440w, grows on larger */
+      --fs: clamp(15px, 0.95vw + 4px, 18px);
+      --fs-sm: clamp(13px, 0.75vw + 4px, 15px);
+      --fs-xs: clamp(12px, 0.65vw + 3px, 14px);
+      --fs-lg: clamp(20px, 1.35vw + 4px, 28px);
+      --fs-xl: clamp(26px, 1.8vw + 4px, 36px);
+      --pad: clamp(14px, 1.1vw, 22px);
+      --gap: clamp(12px, 1vw, 18px);
+      --bar-h: clamp(44px, 3.2vh, 52px);
+      --win-bar-h: clamp(36px, 2.6vh, 42px);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'IBM Plex Mono', ui-monospace, monospace;
+      font-size: var(--fs);
+      line-height: 1.5;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .scanlines {
+      pointer-events: none;
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      background: repeating-linear-gradient(
+        0deg,
+        rgba(0, 0, 0, 0.15) 0px,
+        rgba(0, 0, 0, 0.15) 1px,
+        transparent 1px,
+        transparent 3px
+      );
+      animation: flicker 7.5s infinite;
+    }
+    .vignette {
+      pointer-events: none;
+      position: fixed;
+      inset: 0;
+      z-index: 199;
+      background: radial-gradient(ellipse at center, transparent 32%, rgba(0,0,0,0.8) 100%);
+    }
+    @keyframes flicker {
+      0%, 92%, 100% { opacity: 1; }
+      93% { opacity: 0.9; }
+      94.5% { opacity: 0.65; }
+      95% { opacity: 1; }
+      98% { opacity: 0.8; }
+      98.5% { opacity: 1; }
+    }
+
+    /* ── Top bar ── */
+    .topbar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: var(--bar-h);
+      z-index: 80;
+      display: flex;
+      align-items: center;
+      padding: 0 var(--pad);
+      gap: clamp(16px, 1.5vw, 28px);
+      border-bottom: 1px solid rgba(0, 240, 255, 0.22);
+      background: rgba(5, 6, 8, 0.9);
+      font-size: var(--fs-xs);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+    .topbar .brand {
+      color: var(--cyan);
+      text-shadow: var(--glow-c);
+      font-weight: 600;
+      font-size: var(--fs-sm);
+    }
+    .topbar .sep { color: var(--muted); }
+    .topbar .stat { color: var(--text); white-space: nowrap; opacity: 0.92; }
+    .topbar .stat b { color: var(--magenta); text-shadow: var(--glow-m); font-weight: 600; }
+    .topbar .right { margin-left: auto; display: flex; gap: clamp(14px, 1.2vw, 24px); align-items: center; }
+    .pulse {
+      width: 9px; height: 9px; border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 10px var(--green);
+      animation: pulse 2s ease-in-out infinite;
+      display: inline-block;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.35; }
+    }
+
+    /*
+      Layout (1440p-friendly):
+      ┌─────────────────────────────────────────────┐
+      │ OPERATOR (full width — identity + bio)      │
+      ├──────────┬────────────────────┬─────────────┤
+      │ explorer │     terminal       │  inspector  │
+      ├──────────┴────────────────────┴─────────────┤
+      │ system log (full width)                     │
+      └─────────────────────────────────────────────┘
+    */
+    .desktop {
+      position: absolute;
+      inset: var(--bar-h) 0 0 0;
+      padding: var(--gap);
+      display: grid;
+      grid-template-columns: minmax(260px, 0.85fr) minmax(0, 1.6fr) minmax(300px, 1fr);
+      grid-template-rows:
+        auto
+        minmax(0, 1fr)
+        clamp(150px, 18vh, 200px);
+      gap: var(--gap);
+    }
+
+    .win {
+      border: 2px solid var(--cyan);
+      box-shadow: var(--glow-c), inset 0 0 48px rgba(0, 240, 255, 0.03);
+      background: var(--panel);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      position: relative;
+    }
+    .win.mag {
+      border-color: var(--magenta);
+      box-shadow: var(--glow-m), inset 0 0 48px rgba(255, 46, 136, 0.04);
+    }
+    .win.dim-border {
+      border-color: rgba(0, 240, 255, 0.38);
+      box-shadow: 0 0 14px rgba(0, 240, 255, 0.14);
+    }
+
+    .win-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: var(--win-bar-h);
+      padding: 0 14px;
+      border-bottom: 1px solid rgba(0, 240, 255, 0.35);
+      background: rgba(0, 240, 255, 0.1);
+      font-size: var(--fs-sm);
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      color: #7ff8ff;
+      text-shadow: 0 0 8px rgba(0, 240, 255, 0.65), 0 0 18px rgba(0, 240, 255, 0.35);
+      text-transform: uppercase;
+      flex-shrink: 0;
+      user-select: none;
+    }
+    .win.mag .win-bar {
+      border-bottom-color: rgba(255, 46, 136, 0.45);
+      background: rgba(255, 46, 136, 0.12);
+      color: #ff7ab0;
+      text-shadow: 0 0 8px rgba(255, 46, 136, 0.7), 0 0 18px rgba(255, 46, 136, 0.35);
+    }
+    .d { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .d.r { background: var(--magenta); box-shadow: 0 0 5px var(--magenta); }
+    .d.y { background: #e6b800; box-shadow: 0 0 5px #e6b800; }
+    .d.g { background: var(--green); box-shadow: 0 0 5px var(--green); }
+    .win-bar .t { margin-left: 4px; }
+    .win-bar .meta {
+      margin-left: auto;
+      color: #b8faff;
+      letter-spacing: 0.1em;
+      font-size: var(--fs-xs);
+      font-weight: 500;
+      text-shadow: 0 0 6px rgba(0, 240, 255, 0.4);
+      opacity: 1;
+    }
+    .win.mag .win-bar .meta {
+      color: #ffc0d8;
+      text-shadow: 0 0 6px rgba(255, 46, 136, 0.45);
+    }
+
+    /* ── OPERATOR (top strip) ── */
+    .identity {
+      grid-column: 1 / -1;
+      grid-row: 1;
+    }
+    .id-body {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: clamp(20px, 2.5vw, 40px);
+      align-items: center;
+      padding: clamp(16px, 1.6vh, 24px) clamp(18px, 1.8vw, 28px);
+    }
+    .id-mark {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+    }
+    .id-mark .name {
+      color: var(--cyan);
+      text-shadow: var(--glow-c);
+      font-size: var(--fs-xl);
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      line-height: 1.15;
+    }
+    .id-mark .role {
+      color: var(--magenta);
+      text-shadow: var(--glow-m);
+      font-size: var(--fs-sm);
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+    .id-bio {
+      color: var(--text);
+      font-size: var(--fs);
+      line-height: 1.65;
+      max-width: 72ch;
+      opacity: 0.92;
+      border-left: 2px solid rgba(255, 46, 136, 0.45);
+      padding-left: clamp(14px, 1.2vw, 20px);
+    }
+    .id-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: flex-end;
+      text-align: right;
+      font-size: var(--fs-xs);
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .id-meta a {
+      color: var(--green);
+      text-decoration: none;
+      text-shadow: 0 0 6px rgba(57, 255, 20, 0.35);
+    }
+    .id-meta a:hover { color: var(--cyan); }
+    .id-meta .chip-row {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .id-meta .chip {
+      border: 1px solid rgba(0, 240, 255, 0.4);
+      color: var(--cyan);
+      padding: 3px 10px;
+      font-size: var(--fs-xs);
+      letter-spacing: 0.08em;
+    }
+
+    /* ── FILE BROWSER ── */
+    .files {
+      grid-column: 1;
+      grid-row: 2;
+    }
+    .file-body {
+      overflow-y: auto;
+      padding: 10px 8px;
+      flex: 1;
+      scrollbar-width: thin;
+      scrollbar-color: var(--cyan) transparent;
+    }
+    .dir-label {
+      color: #9ef7ff;
+      font-size: var(--fs-xs);
+      letter-spacing: 0.14em;
+      padding: 6px 12px 12px;
+      text-transform: uppercase;
+      text-shadow: 0 0 6px rgba(0, 240, 255, 0.35);
+    }
+    .frow {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      color: var(--text);
+      font-size: var(--fs);
+      transition: 0.12s;
+      margin-bottom: 2px;
+    }
+    .frow:hover { background: rgba(0, 240, 255, 0.07); color: var(--cyan); }
+    .frow.active {
+      border-color: rgba(255, 46, 136, 0.55);
+      background: rgba(255, 46, 136, 0.09);
+      color: var(--magenta);
+    }
+    .frow .ico { color: var(--cyan); opacity: 0.75; font-size: var(--fs-sm); }
+    .frow.active .ico { color: var(--magenta); }
+    .frow .idx {
+      color: var(--muted);
+      font-size: var(--fs-xs);
+      min-width: 1.6em;
+    }
+    .frow.active .idx { color: var(--magenta); }
+
+    /* ── TERMINAL ── */
+    .term {
+      grid-column: 2;
+      grid-row: 2;
+    }
+    .screen {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px 18px;
+      min-height: 0;
+      scrollbar-width: thin;
+      scrollbar-color: var(--cyan) transparent;
+    }
+    .line {
+      white-space: pre-wrap;
+      word-break: break-word;
+      line-height: 1.6;
+      font-size: var(--fs);
+    }
+    .line.boot { color: var(--green); text-shadow: 0 0 4px rgba(57,255,20,0.35); }
+    .line.cyan { color: var(--cyan); }
+    .line.mag { color: var(--magenta); }
+    .line.dim { color: var(--muted); }
+    .line.err { color: #fff; animation: rgbSplit 0.4s steps(2) 3; }
+
+    @keyframes rgbSplit {
+      0% { text-shadow: 3px 0 #ff2e88, -3px 0 #00f0ff; transform: translateX(0); }
+      25% { text-shadow: -4px 0 #ff2e88, 4px 0 #00f0ff; transform: translateX(-3px); }
+      50% { text-shadow: 4px 0 #ff2e88, -2px 0 #00f0ff; transform: translateX(3px); }
+      100% { text-shadow: none; transform: none; }
+    }
+
+    .prompt-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 18px 14px;
+      border-top: 1px solid rgba(0, 240, 255, 0.18);
+      font-size: var(--fs);
+    }
+    .pl { color: var(--magenta); white-space: nowrap; text-shadow: var(--glow-m); }
+    .pl .u { color: var(--cyan); text-shadow: var(--glow-c); }
+    #cmd {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text);
+      font: inherit;
+      font-size: var(--fs);
+      caret-color: var(--cyan);
+      min-width: 0;
+    }
+
+    /* ── INSPECTOR ── */
+    .detail {
+      grid-column: 3;
+      grid-row: 2;
+    }
+    .detail-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 18px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--magenta) transparent;
+    }
+    .detail-body.idle {
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      text-align: center;
+      font-size: var(--fs-sm);
+      letter-spacing: 0.12em;
+      line-height: 1.8;
+    }
+    .dv-k {
+      font-size: var(--fs-xs);
+      color: #ff9ec4;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      text-shadow: 0 0 6px rgba(255, 46, 136, 0.35);
+      font-weight: 500;
+    }
+    .dv-v {
+      color: var(--cyan);
+      text-shadow: var(--glow-c);
+      font-size: var(--fs-lg);
+      line-height: 1.25;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+    }
+    .dv-d {
+      line-height: 1.65;
+      opacity: 0.92;
+      font-size: var(--fs);
+    }
+    .tags { display: flex; flex-wrap: wrap; gap: 8px; }
+    .tag {
+      font-size: var(--fs-xs);
+      padding: 5px 12px;
+      border: 1px solid rgba(0, 240, 255, 0.4);
+      color: var(--cyan);
+      letter-spacing: 0.06em;
+    }
+    .tag.m { border-color: rgba(255,46,136,0.45); color: var(--magenta); }
+    .dlink {
+      display: block;
+      color: var(--green);
+      text-decoration: none;
+      font-size: var(--fs-sm);
+      margin-top: 2px;
+      word-break: break-all;
+      line-height: 1.5;
+    }
+    .dlink:hover { color: var(--cyan); }
+    .dlink.off { color: var(--dim); pointer-events: none; }
+
+    /* ── SYSLOG ── */
+    .syslog {
+      grid-column: 1 / -1;
+      grid-row: 3;
+    }
+    .log-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 18px;
+      font-size: var(--fs);
+      color: var(--text);
+      background: rgba(0, 0, 0, 0.25);
+      scrollbar-width: thin;
+      scrollbar-color: var(--cyan) transparent;
+    }
+    .log-body .l { line-height: 1.8; font-weight: 500; }
+    .log-body .l .ts {
+      color: #7ff8ff;
+      text-shadow: 0 0 8px rgba(0, 240, 255, 0.55);
+      margin-right: 14px;
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+    }
+    .log-body .l .msg {
+      color: #f0fcfc;
+      text-shadow: 0 0 1px rgba(255, 255, 255, 0.2);
+    }
+    .log-body .l.ok .msg {
+      color: #6dff4a;
+      text-shadow: 0 0 8px rgba(57, 255, 20, 0.55);
+    }
+    .log-body .l.warn .msg {
+      color: #ff8fbc;
+      text-shadow: 0 0 8px rgba(255, 46, 136, 0.55);
+    }
+    .log-body .l.info .msg {
+      color: #7ff8ff;
+      text-shadow: 0 0 8px rgba(0, 240, 255, 0.45);
+    }
+
+    .proto {
+      position: fixed;
+      bottom: 10px;
+      right: 16px;
+      z-index: 80;
+      font-size: 11px;
+      letter-spacing: 0.2em;
+      color: var(--muted);
+      pointer-events: none;
+    }
+
+    @media (max-width: 1100px) {
+      .id-body {
+        grid-template-columns: 1fr;
+        gap: 14px;
+      }
+      .id-bio { border-left: none; border-top: 2px solid rgba(255, 46, 136, 0.4); padding-left: 0; padding-top: 12px; }
+      .id-meta { align-items: flex-start; text-align: left; }
+      .id-meta .chip-row { justify-content: flex-start; }
+      .desktop {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+      }
+      /* mobile stack: operator → explorer → inspector → terminal → syslog */
+      .desktop {
+        padding: 12px;
+        gap: 14px;
+        padding-bottom: 28px;
+      }
+      .identity {
+        order: 1;
+        min-height: unset;
+        flex: 0 0 auto;
+      }
+      .id-body {
+        padding: 18px 16px 20px;
+      }
+      .id-mark .name { font-size: clamp(28px, 8vw, 36px); }
+      .id-bio {
+        font-size: clamp(15px, 3.8vw, 17px);
+        line-height: 1.7;
+      }
+      .files {
+        order: 2;
+        min-height: min(52vh, 420px);
+        height: min(52vh, 420px);
+        flex: 0 0 auto;
+      }
+      .detail {
+        order: 3;
+        min-height: min(56vh, 460px);
+        height: min(56vh, 460px);
+        flex: 0 0 auto;
+      }
+      .term {
+        order: 4;
+        min-height: min(62vh, 520px);
+        height: min(62vh, 520px);
+        flex: 0 0 auto;
+      }
+      .syslog {
+        order: 5;
+        min-height: min(32vh, 260px);
+        height: min(32vh, 260px);
+        flex: 0 0 auto;
+      }
+      .frow {
+        padding: 14px 14px;
+        font-size: clamp(15px, 3.6vw, 17px);
+      }
+      .win { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="scanlines"></div>
+  <div class="vignette"></div>
+
+  <header class="topbar">
+    <span class="brand">SIG / NEON-7</span>
+    <span class="sep">//</span>
+    <span class="stat">UPTIME <b id="uptime">00:00:00</b></span>
+    <span class="stat">PROCS <b>4</b></span>
+    <span class="stat">MEM <b>41%</b></span>
+    <div class="right">
+      <span class="stat"><span class="pulse"></span>LINK LIVE</span>
+      <span class="stat">VER <b>1.0</b></span>
+    </div>
+  </header>
+
+  <div class="desktop">
+    <!-- OPERATOR — full-width top (identity first) -->
+    <section class="win identity mag">
+      <div class="win-bar">
+        <span class="d r"></span><span class="d y"></span><span class="d g"></span>
+        <span class="t">operator</span>
+        <span class="meta">IDENTITY · PRIMARY</span>
+      </div>
+      <div class="id-body">
+        <div class="id-mark">
+          <div class="name">BUFIGE</div>
+          <div class="role">FullStack Developer</div>
+        </div>
+        <div class="id-bio">
+          Software Engineer with years of experience. Each project reflects a skill I learned at the time and used in freelance projects and through my career. You may check my resume for proper work references and what I actually do in my jobs and freelancing.
+        </div>
+        <div class="id-meta">
+          <div class="chip-row">
+            <span class="chip">react</span>
+            <span class="chip">node</span>
+            <span class="chip">ts</span>
+          </div>
+          <a href="https://github.com/bufige" target="_blank" rel="noopener">github.com/bufige →</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Files -->
+    <section class="win files dim-border">
+      <div class="win-bar">
+        <span class="d r"></span><span class="d y"></span><span class="d g"></span>
+        <span class="t">explorer</span>
+        <span class="meta">/proj</span>
+      </div>
+      <div class="file-body">
+        <div class="dir-label">./projects</div>
+        <div id="filelist"></div>
+      </div>
+    </section>
+
+    <!-- Terminal -->
+    <section class="win term">
+      <div class="win-bar">
+        <span class="d r"></span><span class="d y"></span><span class="d g"></span>
+        <span class="t">terminal · tty0</span>
+        <span class="meta" id="conn">BOOT</span>
+      </div>
+      <div class="screen" id="screen"></div>
+      <div class="prompt-row" id="promptRow" style="visibility:hidden">
+        <span class="pl"><span class="u">guest</span>@neon-7:~$</span>
+        <input id="cmd" autocomplete="off" spellcheck="false" />
+      </div>
+    </section>
+
+    <!-- Detail -->
+    <section class="win detail mag">
+      <div class="win-bar">
+        <span class="d r"></span><span class="d y"></span><span class="d g"></span>
+        <span class="t">inspector</span>
+        <span class="meta">FOCUS</span>
+      </div>
+      <div class="detail-body idle" id="detail">
+        SELECT A FILE<br />OR open &lt;id&gt;
+      </div>
+    </section>
+
+    <!-- Syslog -->
+    <section class="win syslog dim-border">
+      <div class="win-bar">
+        <span class="d r"></span><span class="d y"></span><span class="d g"></span>
+        <span class="t">system log</span>
+        <span class="meta">tail -f</span>
+      </div>
+      <div class="log-body" id="syslog"></div>
+    </section>
+  </div>
+
+  <div class="proto">MULTI-WINDOW HUD · 1440P</div>
+
+  <script>
+    const PROJECTS = [
+      { id: 0, name: 'Portfolio', desc: 'Portfolio to showcase skills and projects.', tech: ['react', 'styled-components', 'vite'], skills: ['front-end', 'responsive'], demo: 'https://bufige-portfolio.vercel.app', github: 'https://github.com/bufige' },
+      { id: 1, name: 'Buvie', desc: 'A movie app to search for movies and its details.', tech: ['react', 'api', 'styled-components'], skills: ['front-end', 'responsive'], demo: 'https://buvie.vercel.app', github: 'https://github.com/bufige/buvie' },
+      { id: 2, name: 'Twitch App', desc: 'Twitch UI clone in React Native.', tech: ['react-native'], skills: ['front-end', 'mobile'], demo: '', github: 'https://github.com/outbreakx/twitch-app' },
+      { id: 3, name: 'Ecommerce FE', desc: 'Basic ecommerce frontend features and design.', tech: ['react', 'styled-components'], skills: ['front-end', 'mobile first'], demo: 'https://bufige-ecommerce.vercel.app', github: 'https://github.com/Bufige/ecommerce-react' },
+      { id: 4, name: 'Ecommerce API', desc: 'API with basic ecommerce features.', tech: ['nodejs', 'adonisjs'], skills: ['back-end', 'api'], demo: 'https://bufige-ecommerce-api.herokuapp.com/products', github: 'https://github.com/Bufige/ecommerce-api' },
+      { id: 5, name: 'Webchat Svelte', desc: 'Realtime webchat with Svelte + sockets.', tech: ['svelte', 'socket.io', 'mongodb'], skills: ['front-end', 'sockets'], demo: 'https://chat-svelte-frontend.vercel.app', github: 'https://github.com/Bufige/chat-svelte-frontend' },
+      { id: 6, name: 'Nubank UI', desc: 'Nubank homepage recreation.', tech: ['react-native'], skills: ['front-end', 'mobile'], demo: '', github: 'https://github.com/Bufige/nubank-interface.git' },
+    ];
+
+    const BOOT = [
+      { t: 'NEON-7 multi-window compositor', c: 'cyan' },
+      { t: '[ OK ] wm.start ............... 5 surfaces', c: 'boot' },
+      { t: '[ OK ] surface operator ....... BUFIGE (primary)', c: 'boot' },
+      { t: '[ OK ] surface explorer ....... /proj', c: 'boot' },
+      { t: '[ OK ] surface terminal ....... tty0', c: 'boot' },
+      { t: '[ OK ] surface inspector ...... bound', c: 'boot' },
+      { t: '[ OK ] surface syslog ......... tail -f', c: 'boot' },
+      { t: '[ OK ] crt pipeline ............ scan+vignette', c: 'boot' },
+      { t: '[ OK ] type scale .............. 1440p clamp', c: 'boot' },
+      { t: '[ OK ] project index ........... 7 nodes', c: 'boot' },
+      { t: '[ OK ] input router ............ keyboard', c: 'boot' },
+      { t: '[WARN] guest privileges only', c: 'mag' },
+      { t: '[ OK ] shell nsh 1.0 ........... ready', c: 'boot' },
+      { t: '', c: 'dim' },
+      { t: 'desktop online · help | projects | open | neon | clear', c: 'dim' },
+      { t: '', c: 'dim' },
+    ];
+
+    const screen = document.getElementById('screen');
+    const detail = document.getElementById('detail');
+    const syslog = document.getElementById('syslog');
+    const filelist = document.getElementById('filelist');
+    const cmd = document.getElementById('cmd');
+    const promptRow = document.getElementById('promptRow');
+    const conn = document.getElementById('conn');
+    const uptimeEl = document.getElementById('uptime');
+    const t0 = Date.now();
+
+    function pad(n) { return String(n).padStart(2, '0'); }
+    function ts() {
+      const s = Math.floor((Date.now() - t0) / 1000);
+      return `${pad(Math.floor(s/60))}:${pad(s%60)}`;
+    }
+
+    setInterval(() => {
+      const s = Math.floor((Date.now() - t0) / 1000);
+      uptimeEl.textContent = `${pad(Math.floor(s/3600))}:${pad(Math.floor((s%3600)/60))}:${pad(s%60)}`;
+    }, 1000);
+
+    function log(msg, kind = 'ok') {
+      const row = document.createElement('div');
+      row.className = 'l ' + kind;
+      row.innerHTML = `<span class="ts">${ts()}</span><span class="msg">${msg}</span>`;
+      syslog.appendChild(row);
+      syslog.scrollTop = syslog.scrollHeight;
+    }
+
+    function addLine(text, cls = '') {
+      const p = document.createElement('p');
+      p.className = 'line ' + cls;
+      p.textContent = text;
+      screen.appendChild(p);
+      screen.scrollTop = screen.scrollHeight;
+    }
+
+    function renderFiles() {
+      filelist.innerHTML = PROJECTS.map(p => `
+        <div class="frow" data-id="${p.id}">
+          <span class="ico">▣</span>
+          <span class="idx">${String(p.id).padStart(2,'0')}</span>
+          <span>${p.name}</span>
+        </div>
+      `).join('');
+      filelist.querySelectorAll('.frow').forEach(el => {
+        el.addEventListener('click', () => selectProject(Number(el.dataset.id), true));
+      });
+    }
+
+    function selectProject(id, fromUi) {
+      const p = PROJECTS.find(x => x.id === id);
+      if (!p) return;
+      filelist.querySelectorAll('.frow').forEach(el => {
+        el.classList.toggle('active', Number(el.dataset.id) === id);
+      });
+      detail.className = 'detail-body';
+      detail.innerHTML = `
+        <div class="dv-k">PROJECT_${String(p.id).padStart(2,'0')}</div>
+        <div class="dv-v">${p.name}</div>
+        <div class="dv-d">${p.desc}</div>
+        <div class="dv-k" style="margin-top:8px">STACK</div>
+        <div class="tags">${p.tech.map(t => `<span class="tag">${t}</span>`).join('')}</div>
+        <div class="tags">${p.skills.map(s => `<span class="tag m">${s}</span>`).join('')}</div>
+        <div class="dv-k" style="margin-top:8px">LINKS</div>
+        ${p.demo
+          ? `<a class="dlink" href="${p.demo}" target="_blank" rel="noopener">demo → ${p.demo}</a>`
+          : `<span class="dlink off">demo offline</span>`}
+        <a class="dlink" href="${p.github}" target="_blank" rel="noopener">github → ${p.github}</a>
+      `;
+      if (fromUi) {
+        addLine(`// explorer focus → ${p.name}`, 'dim');
+        log(`inspector focus project/${p.id}`, 'ok');
+      } else {
+        log(`open project/${p.id} ${p.name}`, 'ok');
+      }
+    }
+
+    function handle(raw) {
+      const input = raw.trim();
+      if (!input) return;
+      addLine(`guest@neon-7:~$ ${input}`, 'dim');
+      const [op, ...rest] = input.split(/\s+/);
+      const arg = rest.join(' ');
+      const c = op.toLowerCase();
+
+      if (c === 'help') {
+        addLine('help  projects  open <id|name>  neon  clear  whoami  contact', 'cyan');
+        log('help invoked', 'ok');
+      } else if (c === 'projects' || c === 'ls') {
+        addLine('synced with explorer pane', 'boot');
+        PROJECTS.forEach(p => addLine(`  ${String(p.id).padStart(2,'0')}  ${p.name.padEnd(16)} ${p.tech[0]}`, 'boot'));
+        log('projects listed', 'ok');
+      } else if (c === 'open' || c === 'cat') {
+        const q = (arg || '').toLowerCase();
+        const p = PROJECTS.find(x => String(x.id) === q || x.name.toLowerCase().includes(q));
+        if (!p) {
+          addLine(`nsh: command path not found: ${arg}`, 'err');
+          log(`open failed: ${arg}`, 'warn');
+        } else {
+          addLine(`mounted ${p.name}`, 'cyan');
+          selectProject(p.id, false);
+        }
+      } else if (c === 'neon') {
+        addLine('██ NEON TERMINAL NOIR ██', 'mag');
+        addLine('#0a0a0c  #00f0ff  #ff2e88', 'cyan');
+        addLine('compositor: multi-window hud · 1440p scale', 'boot');
+        log('neon aesthetic dump', 'ok');
+      } else if (c === 'whoami') {
+        addLine('uid=guest(Bufige) gid=dev groups=fullstack', 'cyan');
+        addLine('see OPERATOR panel (top strip)', 'dim');
+        log('whoami', 'ok');
+      } else if (c === 'contact') {
+        addLine('github.com/bufige', 'cyan');
+        log('contact channels', 'ok');
+      } else if (c === 'clear') {
+        screen.innerHTML = '';
+        log('screen cleared', 'warn');
+      } else {
+        addLine(`nsh: command not found: ${op}`, 'err');
+        log(`unknown opcode: ${op}`, 'warn');
+      }
+    }
+
+    async function boot() {
+      log('compositor boot', 'ok');
+      for (const line of BOOT) {
+        addLine(line.t, line.c);
+        await new Promise(r => setTimeout(r, 35 + Math.random() * 45));
+      }
+      conn.textContent = 'ONLINE';
+      conn.style.color = 'var(--green)';
+      promptRow.style.visibility = 'visible';
+      cmd.focus();
+      log('nsh ready — guest session', 'ok');
+      log('operator strip mounted (primary)', 'ok');
+
+      const ambient = [
+        'phosphor refresh 60Hz',
+        'scanline pass ok',
+        'github bridge idle',
+        'crt heat nominal',
+        'guest sandbox intact',
+      ];
+      setInterval(() => {
+        log(ambient[Math.floor(Math.random() * ambient.length)], Math.random() > 0.85 ? 'warn' : 'ok');
+      }, 8000);
+    }
+
+    renderFiles();
+    cmd.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { handle(cmd.value); cmd.value = ''; }
+    });
+    document.querySelector('.term').addEventListener('click', () => cmd.focus());
+    boot();
+  </script>
+</body>
+</html>

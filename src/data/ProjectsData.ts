@@ -102,6 +102,6 @@ const Projects: ProjectData[] = [
     demo: '',
     github: 'https://github.com/Bufige/nubank-interface.git',
   },
-].reverse();
+].sort((a, b) => a.id - b.id);
 
 export default Projects;

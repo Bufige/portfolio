@@ -2,13 +2,17 @@
 
 ## Project Overview
 
-React SPA portfolio for Leonardo Igor ("Bufige"), a full-stack developer. Showcases projects with a dark macOS-inspired theme, tag-based filtering, and modal project details with slideshows.
+React SPA portfolio for Leonardo Igor ("Bufige"), a full-stack developer.  
+**NEON TERMINAL NOIR** multi-window CRT desktop: operator strip, project explorer, interactive shell, inspector, and system log.
+
+Reference prototype: `prototypes/neon-terminal/03-multi-window-hud.html`  
+Implementation plan: `docs/neon-terminal-react-plan.md`
 
 ## Tech Stack
 
-- React 18, React Router DOM v6, Styled Components v6, TypeScript 5
-- Font Awesome 6 (React components, not CDN kit), Vite 5, Vitest 2
-- jsdom for test environment
+- React 19, React Router DOM v7, Styled Components v6, TypeScript (strict)
+- Font Awesome (optional legacy), Vite 8, Vitest 4, jsdom
+- IBM Plex Mono
 
 ## Commands
 
@@ -25,49 +29,53 @@ npm run deploy-bucket  # Build + deploy to AWS S3 (s3://bufige.portifolio)
 ## Project Structure
 
 ```
-index.html              # Vite entry HTML (root, not in public/)
-vite.config.ts          # Vite + Vitest config
-tsconfig.json           # TypeScript strict mode
-flake.nix / flake.lock  # Nix shell for Node.js 24
-deploy.ts               # Build + S3 sync script
+index.html
+vite.config.ts
+docs/neon-terminal-react-plan.md
+prototypes/neon-terminal/          # HTML prototypes (03 is source of truth UX)
 
 src/
-  index.tsx             # Entry point: createRoot from react-dom/client
-  App.tsx               # Root: HashRouter, Routes/Route, global layout
-  vite-env.d.ts         # Vite type references
-  test-setup.ts         # Vitest setup (jsdom + #modal container)
+  index.tsx
+  App.tsx                          # ThemeProvider + HashRouter + Main
+  theme/neon.ts                    # Color/type tokens + DefaultTheme
   data/
-    ProjectsData.ts     # Typed project array (ProjectData[])
-  pages/
-    Main/               # Home page: state for filters, modal, selected project
-      index.tsx, styles.ts
-  components/
-    Dot/                # Colored circle (window bar dots + slideshow nav)
-    FollowMe/           # Fixed left sidebar social links
-    Footer/             # Bottom bar with copyright + contact
-    Modal/              # Project detail modal via createPortal
-    Project/            # Project card (macOS window bar, hover overlay with tags)
-    Projects/           # CSS Grid container for Project cards
-    SearchBar/          # Tag-based filter bar
-    SlideShow/          # Image carousel with auto-advance, arrows, dot nav
-    Tag/                # Pill/chip button
-  styles/
-    global.ts           # Global reset, dark bg (#2a2a2a), custom scrollbars
+    ProjectsData.ts
+    site.ts                        # Operator bio, links, version, codename
+  lib/terminal/
+    types.ts, parseCommand.ts, executeCommand.ts, bootLines.ts, id.ts
+  hooks/
+    useUptime.ts, useBootSequence.ts, useSysLog.ts
+  pages/Main/                      # Neon desktop composition + grid
+  components/neon/
+    CrtOverlay/                    # Scanlines + vignette
+    WindowFrame/                   # Shared CRT window chrome
+    TopBar/
+    OperatorPanel/
+    ExplorerPanel/
+    TerminalPanel/
+    InspectorPanel/
+    SysLogPanel/
+  styles/global.ts
 ```
+
+Legacy card UI components may still exist under `src/components/` (Project, Modal, etc.) but are not mounted.
 
 ## Conventions
 
-- **Styled Components**: co-located `styles.ts` per component directory; transient props use `$` prefix
-- **Imports**: `@components/`, `@data/`, `@pages/`, `@styles/` aliases map to `src/{dir}` (e.g. `@components/Modal`, `@data/ProjectsData`)
-- **Exports**: default export for every component
-- **Naming**: PascalCase for components, camelCase for data/utilities
-- **Routing**: `HashRouter` (static hosting compat) with single route `/`
-- **State**: local state in `Main` (no state management library used)
-- **TypeScript**: strict mode enabled; all components typed with interfaces
+- **Styled Components**: co-located `styles.ts`; transient props use `$` prefix
+- **Imports**: `@components/`, `@data/`, `@pages/`, `@styles/`, `@theme/`, `@hooks/`, `@lib/`
+- **Exports**: default export for components
+- **Routing**: `HashRouter`, route `/`
+- **State**: local in `Main` (selection, boot, syslog); shell logic pure in `lib/terminal`
+- **Theme**: `ThemeProvider` with `neon` tokens
+
+## Shell commands
+
+`help` · `projects` (`ls`) · `open <id|name>` (`cat`) · `neon` · `whoami` · `contact` · `clear`  
+Unknown → RGB-split `command not found`
 
 ## Data Model
 
-Each project in `ProjectsData.ts`:
 ```ts
 interface ProjectData {
   id: number;
@@ -80,18 +88,15 @@ interface ProjectData {
   github: string;
 }
 ```
-Array is reversed on export (newest first).
 
 ## Deployment
 
-- `deploy.ts` runs `npm run build` then `aws s3 sync build/ s3://bufige.portifolio --delete`
-- GitHub Pages: `npm run deploy` (via `gh-pages`)
-- CloudFront distribution: `E3UCLWQQJUTX7O` (domain: `d3ql6soerdgvpl.cloudfront.net`)
-- Skill: `.opencode/skills/deploy/` for full deploy + CF invalidation
+- `deploy.ts` → `npm run build` then `aws s3 sync build/ s3://bufige.portifolio --delete`
+- GitHub Pages: `npm run deploy`
+- CloudFront: `E3UCLWQQJUTX7O` (`d3ql6soerdgvpl.cloudfront.net`)
 
 ## Nix
 
-A `flake.nix` provides Node.js 24 for development:
 ```sh
 nix develop
 ```
